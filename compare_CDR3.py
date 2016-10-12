@@ -14,6 +14,8 @@ import gzip
 import itertools
 from collections import Counter
 
+import os
+
 
 def BrayCurtis(dict1,dict2):
     # Given a hash { 'species': count } for each sample, returns Compositional dissimilarity
@@ -23,14 +25,41 @@ def BrayCurtis(dict1,dict2):
     #http://www.inside-r.org/packages/cran/vegan/docs/vegdist
     # this formula is equivalent to formula with differnece
     
+    
+    if not dict1 or not dict2:
+        return 1.0
+    
+    
     s=0
     s1=0.0
     s2=0.0
+    
+    sum1=sum(dict1.values())
+    
+    for key, value in dict1.items():
+        dict1[key]=value/sum1
+    
+    sum2=sum(dict2.values())
+    
+    for key, value in dict2.items():
+        dict2[key]=value/sum2
+    
+    
+    
+
     
     shared=set(dict1.keys()) & set(dict2.keys())
     for i in shared:
         s+=min(dict1[i],dict2[i])
     return 1-2.0*s/(sum(dict1.values())+sum(dict2.values()))
+
+
+def CDR3Shared(dict1,dict2):
+    set1=set(dict1.keys())
+    set2=set(dict2.keys())
+
+    return set1.intersection(set2)
+
 
 
 
@@ -47,21 +76,62 @@ def fastq2readLength(inFile):
 
 
 
+# mixcr2CDR3 - 10/11/2016
+#Note : In case the output contains identical protein sequences and different nucleotide suquences of CDR3 correponding to different lines. It will sum up. Example of such situation - examples/CDR3_different_nt_thesame_aminoAcids.txt
 
-def mixcr2CDR3(inFile, clonotypes):
+def mixcr2CDR3(inFile,chain):
+    clonotypes={}
+    d={}
+    
+    d["IGH"]=0
+    d["IGK"]=1
+    d["IGL"]=2
+    
+    d["TRA"]=4
+    d["TRB"]=5
+    d["TRD"]=6
+    d["TRG"]=7
     
     clonotypesTemp=set()
     
     with open(inFile, 'r') as f:
+        
+        if os.stat(inFile).st_size == 0:
+            return {}
+        
         csvFile = csv.reader(f,delimiter='\t')
         next(csvFile)
+        
+        
+        
         for line in csvFile:
             
-            if  line[32] in clonotypesTemp:
-                clonotypes[line[32]]+=float(line[2])
-            else:
-                clonotypesTemp.add(line[32])
-                clonotypes[line[32]]=float(line[2])
+            
+            
+            
+            
+            if "*" not in line[32] and "_" not in line[32]:
+                
+                
+                if (chain =="IGH" and line[32].startswith('C') and line[32].endswith('W')) or (chain !="IGH" and line[32].startswith('C') and line[32].endswith('F')):
+                
+                    if chain in line[5] and chain in line[7]:
+                        if  line[32] in clonotypesTemp:
+                            clonotypes[line[32]]+=float(line[2])
+                        else:
+                            clonotypesTemp.add(line[32])
+                            clonotypes[line[32]]=float(line[2])
+
+
+
+
+    sum1=sum(clonotypes.values())
+    
+    for key, value in clonotypes.items():
+        clonotypes[key]=value/sum1
+    
+
+    return clonotypes
 
 #===================================
 
@@ -72,15 +142,20 @@ necessary_arguments.add_argument("dir",
                                  help="directory to save results of the analysis")
 necessary_arguments.add_argument("dirFastq",
                                  help="dir with unmapped reads")
-necessary_arguments.add_argument("out",
-                                 help="out")
-
+necessary_arguments.add_argument("outDir",
+                                 help="outDir")
 
 
 
 
 
 args = ap.parse_args()
+
+
+
+
+if not os.path.exists(args.outDir):
+    os.makedirs(args.outDir)
 
 
 updated_manifest="/u/home/s/serghei/collab/metadata/updated_manifest.csv"
@@ -110,6 +185,7 @@ dict__tissue_sample={}
 
 dict_indv_tissues={}
 dict_tissuePairs={}
+dict_tissuePairs2={}
 
 listTissuePairs=[]
 
@@ -141,6 +217,8 @@ with open(updated_manifest, 'r') as f:
 #print line[14],line[16]
 
 
+
+
 for i in individuals:
     dict_indv_tissues[i]=set()
 
@@ -167,10 +245,24 @@ for key, value in dict_indv_tissues.iteritems():
 
 validTissuePairs=set()
 
+
+
+
+
+
 for key, value in Counter(listTissuePairs).iteritems():
     if value>10:
         #print key,value
         validTissuePairs.add(key)
+
+
+#valid - supported by more then 10 samples
+for t in validTissuePairs:
+    dict_tissuePairs[t]=[]
+    dict_tissuePairs2[t]=[]
+
+
+
 
 
 print "Number of tissue pairs supported by at least 10 individuals -", len([i for i in Counter(listTissuePairs).values() if i > 10])
@@ -191,12 +283,16 @@ print "TO DO : use replicates to study how consistent are the results"
 
 numberSampleOtherReadLength=[]
 
-k=0
+
 
 
 
 print "Select samples with read length  =76 and save to the set File_NameSet_rl_76 "
 
+
+file_rl_not76=open(args.outDir+"/samples_rl_not76.txt","w")
+
+k=0
 for i in individuals:
     k+=1
     string1='%s*%s*' %(args.dir,i)
@@ -217,67 +313,90 @@ for i in individuals:
         rl=fastq2readLength(f)
         if rl==76:
             fileName=f.split("afterQC_lostHuman_Fasta/")[1].split("_")[0].split(".unmapped")[0]
-            print f,fileName
+            #print f,fileName
             File_NameSet_rl_76.add(fileName)
         else:
-            print rl, f
+            file_rl_not76.write(str(rl)+","+f)
+            file_rl_not76.write("\n")
 
-    
-    sys.exit(1)
-
-    for f1 in file:
-        for f2 in file:
-            
-            fileName1=f1.split("_")[1].split(".unmapped")[0]
-            fileName2=f2.split("_")[1].split(".unmapped")[0]
-            
-            
-            
-            
-            if fileName1>fileName2 and os.stat(f1).st_size != 0 and os.stat(f2).st_size != 0 and fileName1 in File_NameSet and fileName2 in File_NameSet:
-                fileName1=f1.split("_")[1].split(".unmapped")[0]
-                fileName2=f2.split("_")[1].split(".unmapped")[0]
-
-                clonotypes1={}
-                clonotypes2={}
-                mixcr2CDR3(f1, clonotypes1)
-                mixcr2CDR3(f2, clonotypes2)
-                
-                #print fileName1,fileName2,len(clonotypes1), len(clonotypes2), len(clonotypes1 & clonotypes2)
-
-
-                tissue1=dict__sample__body_site_s[fileName1]
-                tissue2=dict__sample__body_site_s[fileName2]
-
-                if tissue1>=tissue2:
-                    tp=tissue1+"---"+tissue2
-                else:
-                    tp=tissue2+"---"+tissue1
-                
-                if tissue1==tissue2:
-                    print "!!!",f1,f2,tissue1
-                beta=BrayCurtis(clonotypes1,clonotypes2)
-                tissues_pairs_dict2[tp].append(beta)
 
     if k>10:
         break
 
+file_rl_not76.close()
 
 
 
-        
-target = open(args.out, 'w')
 
-for key, value in tissues_pairs_dict2.iteritems():
+
+
+
+k=0 #temporary for TESTING
+for i in individuals:
+    k+=1
+    string1='%s*%s*' %(args.dir,i)
+    file = glob(string1)
+    for p in list(itertools.combinations(file, 2)):
+        #print p[0]
+        #print p[1]
+        fileName1=p[0].split("_")[1].split(".unmapped")[0]
+        fileName2=p[1].split("_")[1].split(".unmapped")[0]
+
+        if fileName1 in File_NameSet_RNASeq and fileName2 in  File_NameSet_RNASeq:
     
-    if len(value)>0:
-
-        target.write( key+","+str(np.mean(value)) + ","+str(np.std(value)))
-        target.write("\n")
+    
 
 
+            clonotypes1={}
+            clonotypes2={}
+            clonotypes1=mixcr2CDR3(p[0],"TR")
+            clonotypes2=mixcr2CDR3(p[1],"TR")
+            #print p[0],clonotypes1
+            #print p[1],clonotypes2
+            
+            
+            
+            
+            
+            
+            
+            beta=BrayCurtis(clonotypes1,clonotypes2)
+            
+            t1=dict__sample__body_site_s[fileName1]
+            t2=dict__sample__body_site_s[fileName2]
+
+            
+            #print beta, dict__sample__body_site_s[fileName1], dict__sample__body_site_s[fileName2],len(CDR3Shared(clonotypes1,clonotypes2))
+            if  (t1,t2) in validTissuePairs:
+                shared_CDR3=len(CDR3Shared(clonotypes1,clonotypes2))
+                dict_tissuePairs[(t1,t2)].append(shared_CDR3)
+                dict_tissuePairs[(t1,t2)].append(beta)
 
 
+
+
+
+
+fileOut=open(args.outDir+"/sharedCDR3_acrossTissues.txt","w")
+
+for key,value in dict_tissuePairs.iteritems():
+    if value:
+        print key,value
+        fileOut.write(str(key)+","+str(np.mean(value)))
+        fileOut.write("\n")
+
+
+fileOut.close()
+
+fileOut2=open(args.outDir+"/sharedCDR3_acrossTissues_beta.txt","w")
+
+for key,value in dict_tissuePairs2.iteritems():
+    if value:
+        print key,value
+        fileOut2.write(str(key)+","+str(np.mean(value)))
+        fileOut2.write("\n")
+
+fileOut2.close()
 
 
 

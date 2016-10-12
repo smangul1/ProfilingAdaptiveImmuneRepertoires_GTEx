@@ -1,0 +1,2 @@
+python compare_CDR3.py ~/scratch/mixcr/clonotypes/data/ ~/collab/GTEX/raw/afterQC_lostHuman_Fasta/ test
+
