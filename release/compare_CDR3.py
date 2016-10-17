@@ -236,15 +236,6 @@ listTissuePairs=[]
 
 individuals=set()
 tissues=set()
-samples=set()
-
-dict_tissue_sampleSet={}
-
-
-dict_tissue_exactShared={}
-dict_tissue_distance={}
-
-
 
 
 chains=["IGH","IGK","IGL","TRA","TRB","TRG","TRD"]
@@ -253,10 +244,6 @@ for c in chains:
     dict_tissuePairs_exactShared[c]={}
     dict_tissuePairs_distance[c]={}
     dict_tissuePairs_pairs[c]={}
-
-    #the same tissues, different individuals
-    dict_tissue_exactShared[c]={}
-    dict_tissue_distance[c]={}
 
 
 
@@ -275,7 +262,6 @@ with open(updated_manifest, 'r') as f:
         if line[2]=="RNA-Seq":
             individuals.add(line[24])
             tissues.add(line[16])
-            samples.add(line[1])
 
             dict__sample__File_Name[line[14]]=line[1]
             samplesSet.add(line[14])
@@ -284,19 +270,6 @@ with open(updated_manifest, 'r') as f:
             dict__sample__body_site_s[line[1]]=line[16]
 
 #print line[14],line[16]
-
-
-#make dict_tissue_sampleSet, to store a set of samples per tissue
-for t in tissues:
-    for chain in chains:
-        dict_tissue_exactShared[chain][t]=[]
-        dict_tissue_distance[chain][t]=[]
-
-    dict_tissue_sampleSet[t]=set()
-
-for s in samples:
-    tissue=dict__sample__body_site_s[s]
-    dict_tissue_sampleSet[tissue].add(s)
 
 
 
@@ -378,7 +351,6 @@ numberSampleOtherReadLength=[]
 
 
 
-
 print "Select samples with read length  =76 and save to the set File_NameSet_rl_76 "
 
 
@@ -406,39 +378,30 @@ for i in individuals:
         rl=fastq2readLength(f)
         if rl==76:
             fileName=f.split("afterQC_lostHuman_Fasta/")[1].split("_")[0].split(".unmapped")[0]
-            if fileName in File_NameSet_RNASeq:
-                #print f,fileName
-                File_NameSet_rl_76.add(fileName)
+            #print f,fileName
+            File_NameSet_rl_76.add(fileName)
         else:
             file_rl_not76.write(str(rl)+","+f)
             file_rl_not76.write("\n")
 
 
-    if k>2:
-        break
+#if k>2:
+#break
 
 file_rl_not76.close()
 
 
+print "Extract clonotypes for each tissue per individual"
 
 
 
 
-
-
-
-
-
-
-#=======================================================================
-print "1.Estimate different tissues within the individual"
 k=0 #temporary for TESTING
+
+print "1.Estimate different tissues within the individual"
 for i in individuals:
-    k+=1
-    if k>0:
-        break
-    
     print k
+    k+=1
     string1='%s*%s*' %(args.dir,i)
     file = glob(string1)
     
@@ -451,7 +414,6 @@ for i in individuals:
             if fileName in File_NameSet_RNASeq:
                 t=dict__sample__body_site_s[fileName]
                 shared_CDR3=len(CDR3Shared(clonotypes,clonotypes))
-                dict_tissuePairs_exactShared[chain][(t,t)].append(shared_CDR3)
                 d=distanceCDR3(clonotypes,clonotypes)
                 if d!=-1:
                     dict_tissuePairs_distance[chain][(t,t)].append(d)
@@ -463,7 +425,7 @@ for i in individuals:
         fileName1=p[0].split("_")[1].split(".unmapped")[0]
         fileName2=p[1].split("_")[1].split(".unmapped")[0]
 
-        if fileName1 in File_NameSet_rl_76 and fileName2 in  File_NameSet_rl_76:
+        if fileName1 in File_NameSet_RNASeq and fileName2 in  File_NameSet_RNASeq:
     
     
             for chain in chains:
@@ -488,7 +450,8 @@ for i in individuals:
                     if d!=-1:
                         dict_tissuePairs_distance[chain][(t1,t2)].append(d)
 
-
+#if k>2:
+#break
 
 
 
@@ -498,8 +461,9 @@ for i in individuals:
 for chain in chains:
 
 
-    #number of CDR3 shared between of samples from the same tissues
     fileOut=open(args.outDir+"/sharedCDR3_acrossTissues_exactShared_"+chain+".csv","w")
+
+
     for key,value in dict_tissuePairs_exactShared[chain].iteritems():
         if value:
             print key,value
@@ -510,9 +474,8 @@ for chain in chains:
 
     fileOut.close()
 
-
-    #distance between of samples from the same tissues
     fileOut2=open(args.outDir+"/sharedCDR3_acrossTissues_distance_"+chain+".csv","w")
+
     for key,value in dict_tissuePairs_distance[chain].iteritems():
         if value:
             print key,value
@@ -522,114 +485,11 @@ for chain in chains:
 
     fileOut2.close()
 
-    #number of pairs of samples compared per tissue
-    fileOut3=open(args.outDir+"/sharedCDR3_acrossTissues_size_"+chain+".csv","w")
-    for key,value in dict_tissuePairs_distance[chain].iteritems():
-        if value:
-            print key,value
-            if len(value)>10:
-                fileOut3.write(str(key)+","+str(len(value)))
-                fileOut3.write("\n")
-
-    fileOut3.close()
 
 
 
+print "2. The same tissue different individuals"
 
-
-
-#=======================================================================
-print "2.) The same tissue different individuals"
-
-k=0
-
-for t in tissues:
-    k+=1
-    if k>2: #temp
-        break
-    files=set()
-    files.clear()
-    #print t, len(dict_tissue_sampleSet[t])
-    for s in dict_tissue_sampleSet[t]:
-        string1='%s*%s*' %(args.dir,s)
-        file = glob(string1)
-        if file:
-            files.add(file[0])
-
-
-
-
-    for p in list(itertools.combinations(list(files)[0:10], 2)): #temp
-        fileName1=p[0].split("_")[1].split(".unmapped")[0]
-        fileName2=p[1].split("_")[1].split(".unmapped")[0]
-        
-        if 1==1: #if fileName1 in File_NameSet_rl_76 and fileName2 in  File_NameSet_rl_76:
-            
-            print t,fileName1,fileName2
-            for chain in chains:
-                
-                clonotypes1={}
-                clonotypes2={}
-                clonotypes1=mixcr2CDR3(p[0],chain)
-                clonotypes2=mixcr2CDR3(p[1],chain)
-                
-                
-                
-                shared_CDR3=len(CDR3Shared(clonotypes1,clonotypes2))
-                dict_tissue_exactShared[chain][t].append(shared_CDR3)
-                d=distanceCDR3(clonotypes1,clonotypes2)
-                if d!=-1:
-                    dict_tissue_distance[chain][t].append(d)
-                    print t,d
-
-
-
-
-#print "Thyroid"
-print dict_tissue_distance["IGH"]["Thyroid"]
-
-print "Save to files ------"
-
-
-
-for chain in chains:
-    print chain
-    
-    #number of CDR3 shared between of samples from the same tissues
-    fileOut=open(args.outDir+"/sharedCDR3_acrossInd_exactShared_"+chain+".csv","w")
-    for key,value in dict_tissue_exactShared[chain].iteritems():
-        print key,value
-        if value:
-            print key,value
-            if len(value)>10:
-                fileOut.write(str(key)+","+str(np.mean(value)))
-                fileOut.write("\n")
-
-
-    fileOut.close()
-    
-    
-    #distance between of samples from the same tissues
-    fileOut2=open(args.outDir+"/sharedCDR3_acrossInd_distance_"+chain+".csv","w")
-    for key,value in dict_tissue_distance[chain].iteritems():
-        if value:
-            print key,value
-            if len(value)>10:
-                fileOut2.write(str(key)+","+str(np.mean(value)))
-                fileOut2.write("\n")
-
-    fileOut2.close()
-    
-    #number of pairs of samples compared per tissue
-    fileOut3=open(args.outDir+"/sharedCDR3_acrossInd_size_"+chain+".csv","w")
-    for key,value in dict_tissue_distance[chain].iteritems():
-        if value:
-            print key,value
-            if len(value)>10:
-                fileOut3.write(str(key)+","+str(len(value)))
-                fileOut3.write("\n")
-
-    fileOut3.close()
 
 
 

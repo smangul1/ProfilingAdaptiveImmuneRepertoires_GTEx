@@ -176,7 +176,7 @@ args = ap.parse_args()
 #-------
 
 
-print "Testing distanceCDR3 function based on jellyfish.levenshtein_distance"
+print "a. Testing distanceCDR3 function based on jellyfish.levenshtein_distance"
 d1={}
 d2={}
 
@@ -191,6 +191,53 @@ d2['333']=1
 
 print distanceCDR3(d1,d2)
 print "distanceCDR3 works as expected!"
+
+
+
+print "b. Testing mixcr2CDR3"
+
+clonotype_IGH_1=mixcr2CDR3("/u/home/s/serghei/scratch/mixcr/clonotypes/data/clones_C1422.GTEX-PLZ5-0003.4.unmapped_after_rRNA_lostHuman.txt","IGH")
+clonotype_IGK_1=mixcr2CDR3("/u/home/s/serghei/scratch/mixcr/clonotypes/data/clones_C1422.GTEX-PLZ5-0003.4.unmapped_after_rRNA_lostHuman.txt","IGK")
+clonotype_IGL_1=mixcr2CDR3("/u/home/s/serghei/scratch/mixcr/clonotypes/data/clones_C1422.GTEX-PLZ5-0003.4.unmapped_after_rRNA_lostHuman.txt","IGL")
+clonotype_TRA_1=mixcr2CDR3("/u/home/s/serghei/scratch/mixcr/clonotypes/data/clones_C1422.GTEX-PLZ5-0003.4.unmapped_after_rRNA_lostHuman.txt","TRA")
+clonotype_TRB_1=mixcr2CDR3("/u/home/s/serghei/scratch/mixcr/clonotypes/data/clones_C1422.GTEX-PLZ5-0003.4.unmapped_after_rRNA_lostHuman.txt","TRB")
+clonotype_TRD_1=mixcr2CDR3("/u/home/s/serghei/scratch/mixcr/clonotypes/data/clones_C1422.GTEX-PLZ5-0003.4.unmapped_after_rRNA_lostHuman.txt","TRD")
+clonotype_TRG_1=mixcr2CDR3("/u/home/s/serghei/scratch/mixcr/clonotypes/data/clones_C1422.GTEX-PLZ5-0003.4.unmapped_after_rRNA_lostHuman.txt","TRG")
+
+
+clonotype_IGH_2=mixcr2CDR3("/u/home/s/serghei/scratch/mixcr/clonotypes/data/clones_C1422.GTEX-NPJ7-0009.1.unmapped_after_rRNA_lostHuman.txt","IGH")
+clonotype_IGK_2=mixcr2CDR3("/u/home/s/serghei/scratch/mixcr/clonotypes/data/clones_C1422.GTEX-NPJ7-0009.1.unmapped_after_rRNA_lostHuman.txt","IGK")
+clonotype_IGL_2=mixcr2CDR3("/u/home/s/serghei/scratch/mixcr/clonotypes/data/clones_C1422.GTEX-NPJ7-0009.1.unmapped_after_rRNA_lostHuman.txt","IGL")
+clonotype_TRA_2=mixcr2CDR3("/u/home/s/serghei/scratch/mixcr/clonotypes/data/clones_C1422.GTEX-NPJ7-0009.1.unmapped_after_rRNA_lostHuman.txt","TRA")
+clonotype_TRB_2=mixcr2CDR3("/u/home/s/serghei/scratch/mixcr/clonotypes/data/clones_C1422.GTEX-NPJ7-0009.1.unmapped_after_rRNA_lostHuman.txt","TRB")
+clonotype_TRD_2=mixcr2CDR3("/u/home/s/serghei/scratch/mixcr/clonotypes/data/clones_C1422.GTEX-NPJ7-0009.1.unmapped_after_rRNA_lostHuman.txt","TRD")
+clonotype_TRG_2=mixcr2CDR3("/u/home/s/serghei/scratch/mixcr/clonotypes/data/clones_C1422.GTEX-NPJ7-0009.1.unmapped_after_rRNA_lostHuman.txt","TRG")
+
+
+print clonotype_IGH_1
+print clonotype_IGK_1
+print clonotype_IGL_1
+print clonotype_TRA_1
+print clonotype_TRB_1
+print clonotype_TRG_1
+print clonotype_TRD_1
+
+print "-----"
+print clonotype_IGH_2
+print clonotype_IGK_2
+print clonotype_IGL_2
+print clonotype_TRA_2
+print clonotype_TRB_2
+print clonotype_TRG_2
+print clonotype_TRD_2
+
+
+print "Compare File 1 : {'CVNTEAFF': 1.0} and File2: {'CASGPGGAYEQYF': 0.5, 'CASSHWGPGYYEQYF': 0.5}"
+print distanceCDR3(clonotype_TRB_1,clonotype_TRB_2)
+print CDR3Shared(clonotype_TRB_1,clonotype_TRB_2)
+
+print "mixcr2CDR3 works as expected!"
+
 
 
 #-------
@@ -341,6 +388,18 @@ for key, value in Counter(listTissuePairs).iteritems():
         validTissuePairs.add(key)
 
 
+
+print "Save validTissuePairs into file"
+fileOut=open(args.outDir+"/validTissuePairs.csv","w")
+
+for t in validTissuePairs:
+    fileOut.write(t[0]+","+t[1])
+    fileOut.write("\n")
+
+fileOut.close()
+
+
+
 #valid - supported by more then 10 samples
 for t in validTissuePairs:
     for chain in chains:
@@ -388,7 +447,6 @@ file_rl_not76=open(args.outDir+"/samples_rl_not76.txt","w")
 k=0
 for i in individuals:
     k+=1
-    print k
     string1='%s*%s*' %(args.dir,i)
     string_fastq='%s*%s*' %(args.dirFastq,i)
     
@@ -513,15 +571,7 @@ for chain in chains:
 
     fileOut2.close()
     
-    #number of pairs of samples compared per tissue
-    fileOut3=open(args.outDir+"/mean_sharedCDR3_acrossInd_size_mean"+chain+".csv","w")
-    for key,value in dict_tissue_distance[chain].iteritems():
-        if value:
-            if len(value)>1:
-                fileOut3.write(str(key)+","+str(len(value)))
-                fileOut3.write("\n")
 
-    fileOut3.close()
 
 
     fileOut4=open(args.outDir+"/sharedCDR3_acrossInd_exactShared_"+chain+".csv","w")

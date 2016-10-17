@@ -1,0 +1,6 @@
+Oct16
+#to run compare_CDR3_theSameTissue_differentIndv.py 
+
+for i in {0..53};do echo "python ~/code2/ProfilingAdaptiveImmuneRepertoires_GTEx/compare_CDR3_theSameTissue_differentIndv.py ~/scratch/mixcr/clonotypes/data/ ~/collab/GTEX/raw/afterQC_lostHuman_Fasta/ theSameTissue_differentIndv_${i} $i">run_theSameTissue_differentIndv_${i}.sh;done
+
+

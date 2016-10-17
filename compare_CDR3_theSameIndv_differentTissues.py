@@ -165,6 +165,8 @@ necessary_arguments.add_argument("dirFastq",
                                  help="dir with unmapped reads")
 necessary_arguments.add_argument("outDir",
                                  help="outDir")
+necessary_arguments.add_argument("n",
+                                 help="tissue pair number from 0 to 1507")
 
 
 
@@ -175,7 +177,7 @@ args = ap.parse_args()
 #-------
 
 
-print "Testing distanceCDR3 function based on jellyfish.levenshtein_distance"
+print "a. Testing distanceCDR3 function based on jellyfish.levenshtein_distance"
 d1={}
 d2={}
 
@@ -190,6 +192,8 @@ d2['333']=1
 
 print distanceCDR3(d1,d2)
 print "distanceCDR3 works as expected!"
+
+
 
 
 #-------
@@ -347,6 +351,21 @@ for t in validTissuePairs:
         dict_tissuePairs_exactShared[chain][t]=[]
 
 
+print "Save validTissuePairs into file"
+fileOut=open(args.outDir+"/validTissuePairs.csv","w")
+
+
+
+
+for t in validTissuePairs:
+    fileOut.write(t[0]+","+t[1])
+    fileOut.write("\n")
+
+
+
+fileOut.close()
+
+
 print "Add pairs of the same tissues. TO e"
 for t in tissues:
    for chain in chains:
@@ -410,14 +429,25 @@ for i in individuals:
                 #print f,fileName
                 File_NameSet_rl_76.add(fileName)
         else:
-            file_rl_not76.write(str(rl)+","+f)
+            file_rl_not76.write(str(rl)+","+fileName)
             file_rl_not76.write("\n")
 
 
-    if k>2:
-        break
 
 file_rl_not76.close()
+
+
+#fix later
+print "Save file with read length 76 to ..."
+
+fileOut_76=open(args.outDir+"/samples_rl_76.csv","w")
+
+
+for f in File_NameSet_rl_76:
+    fileOut_76.write(f)
+    fileOut_76.write("\n")
+fileOut_76.close()
+
 
 
 
@@ -434,11 +464,7 @@ file_rl_not76.close()
 print "1.Estimate different tissues within the individual"
 k=0 #temporary for TESTING
 for i in individuals:
-    k+=1
-    if k>0:
-        break
     
-    print k
     string1='%s*%s*' %(args.dir,i)
     file = glob(string1)
     
@@ -538,51 +564,6 @@ for chain in chains:
 
 
 
-#=======================================================================
-print "2.) The same tissue different individuals"
-
-k=0
-
-for t in tissues:
-    k+=1
-    if k>2: #temp
-        break
-    files=set()
-    files.clear()
-    #print t, len(dict_tissue_sampleSet[t])
-    for s in dict_tissue_sampleSet[t]:
-        string1='%s*%s*' %(args.dir,s)
-        file = glob(string1)
-        if file:
-            files.add(file[0])
-
-
-
-
-    for p in list(itertools.combinations(list(files)[0:10], 2)): #temp
-        fileName1=p[0].split("_")[1].split(".unmapped")[0]
-        fileName2=p[1].split("_")[1].split(".unmapped")[0]
-        
-        if 1==1: #if fileName1 in File_NameSet_rl_76 and fileName2 in  File_NameSet_rl_76:
-            
-            print t,fileName1,fileName2
-            for chain in chains:
-                
-                clonotypes1={}
-                clonotypes2={}
-                clonotypes1=mixcr2CDR3(p[0],chain)
-                clonotypes2=mixcr2CDR3(p[1],chain)
-                
-                
-                
-                shared_CDR3=len(CDR3Shared(clonotypes1,clonotypes2))
-                dict_tissue_exactShared[chain][t].append(shared_CDR3)
-                d=distanceCDR3(clonotypes1,clonotypes2)
-                if d!=-1:
-                    dict_tissue_distance[chain][t].append(d)
-                    print t,d
-
-
 
 
 #print "Thyroid"
@@ -596,7 +577,7 @@ for chain in chains:
     print chain
     
     #number of CDR3 shared between of samples from the same tissues
-    fileOut=open(args.outDir+"/sharedCDR3_acrossInd_exactShared_"+chain+".csv","w")
+    fileOut=open(args.outDir+"/mean_sharedCDR3_acrossInd_exactShared_"+chain+".csv","w")
     for key,value in dict_tissue_exactShared[chain].iteritems():
         print key,value
         if value:
@@ -610,7 +591,7 @@ for chain in chains:
     
     
     #distance between of samples from the same tissues
-    fileOut2=open(args.outDir+"/sharedCDR3_acrossInd_distance_"+chain+".csv","w")
+    fileOut2=open(args.outDir+"/mean_sharedCDR3_acrossInd_distance_"+chain+".csv","w")
     for key,value in dict_tissue_distance[chain].iteritems():
         if value:
             print key,value
@@ -620,16 +601,36 @@ for chain in chains:
 
     fileOut2.close()
     
-    #number of pairs of samples compared per tissue
-    fileOut3=open(args.outDir+"/sharedCDR3_acrossInd_size_"+chain+".csv","w")
+
+
+
+
+    fileOut4=open(args.outDir+"/sharedCDR3_acrossInd_exactShared_"+chain+".csv","w")
+    for key,value in dict_tissue_exactShared[chain].iteritems():
+        if value:
+            for v in value:
+                fileOut4.write(str(key)+","+str(v))
+                fileOut4.write("\n")
+
+
+    fileOut.close()
+    
+    
+    #distance between of samples from the same tissues
+    fileOut5=open(args.outDir+"/sharedCDR3_acrossInd_distance_"+chain+".csv","w")
     for key,value in dict_tissue_distance[chain].iteritems():
         if value:
-            print key,value
-            if len(value)>10:
-                fileOut3.write(str(key)+","+str(len(value)))
-                fileOut3.write("\n")
+            for v in value:
+                fileOut5.write(str(key)+","+str(v))
+                fileOut5.write("\n")
 
-    fileOut3.close()
+    fileOut2.close()
+
+
+
+
+    print "DONE!!!!"
+
 
 
 
